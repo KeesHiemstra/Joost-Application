@@ -7,7 +7,7 @@ using CLParser;
 
 /*****
  * Add note to database.
- * Parameters: [-N[ote]] <message> [[-T[ag] <tag>] ...] [-E[vent] <event>]
+ * Parameters: [-N[ote]] <message> [-E[vent] <event>] [[-T[ag] <tag>] ...]
  * 
  * remark: Tool name is not called Add-Note because it could confused in PowerShell.
  */
@@ -19,9 +19,18 @@ namespace AddNote
 		static void Main(string[] args)
 		{
 			CLI cli = new CLI();
-			//CLI cli;
-			cli.Add("Name");
-			cli.AddAlias("Name", "N");
+			cli.Add("Message")
+				.AddAlias("M")
+				.AddAlias("Msg");
+
+			cli.Add("Event")
+				.AddAlias("E");
+
+			cli.Add("Tag")
+				.NotRequiredValue()
+				.MaxListValue()
+				.AddAlias("T");
+
 
 			Console.WriteLine();
 			Console.WriteLine("Alias: Argument");
@@ -33,6 +42,9 @@ namespace AddNote
 
 			Console.WriteLine();
 			Console.WriteLine($"Alias N is agument: {cli.GetName("n")}");
+
+			Console.WriteLine();
+			cli.Parse(args);
 
 			Console.WriteLine();
 			Console.Write("Press any key...");

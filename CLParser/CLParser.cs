@@ -6,29 +6,33 @@ namespace CLParser
 {
 	public class CLI
 	{
+		public string ArgumentNamePrefixes { get; set; } = "-/";
+		public string ValueNamesSeparators { get; set; } = ",|";
+
 		public static IDictionary<string, Argument> Arguments = new Dictionary<string, Argument>();
-		private static IDictionary<string, string> Aliasses = new Dictionary<string, string>();
+		internal static IDictionary<string, string> Aliasses = new Dictionary<string, string>();
 
 		public CLI()
 		{
 		}
 
 		#region Add >> Add Argument(<Name>)
-		public void Add(string argumentName)
+		public Argument Add(string argumentName)
 		{
+			Argument argument = new Argument();
+
 			AddAlias(argumentName, argumentName);
 			try
 			{
-				Argument argument = new Argument
-				{
-					Name = argumentName
-				};
+				argument.Name = argumentName;
 				Arguments.Add(argumentName, argument);
 			}
 			catch (Exception)
 			{
 
 			}
+
+			return argument;
 		}
 		#endregion
 
@@ -53,9 +57,55 @@ namespace CLParser
 		#region Parse >> Parse CLI arguments
 		public bool Parse(string[] args)
 		{
-			bool Result = false;
+			bool Result = true;
 
+			if (Result = ParseArgs(args))
+			{
+				Console.WriteLine("Info: Parsed arguments");
+				if (Result = ValidateArguments())
+				{
+					Console.WriteLine("Info: Validated arguments");
+				}
+				else
+				{
+					Console.WriteLine("Error: Failed validation arguments");
+				}
+			}
+			else
+			{
+				Console.WriteLine("Error: Failed parse arguments");
+			}
 
+			return Result;
+		}
+		#endregion
+
+		#region Parse arguments
+		private bool ParseArgs(string[] args)
+		{
+			bool Result = true;
+
+			return Result;
+		}
+		#endregion
+
+		#region Process argument
+		private void ProcessArgument(string argumentName, string argumentValue)
+		{
+
+		}
+		#endregion
+
+		#region Validate arguments
+		private bool ValidateArguments()
+		{
+			bool Result = true;
+
+			foreach (var item in Arguments)
+			{
+				Console.WriteLine($"{item.Key}: #{item.Value.Id}, Required: {item.Value.IsRequeredArgument()} " +
+					$"List: {item.Value.IsListableArgument()}");
+			}
 
 			return Result;
 		}
@@ -86,13 +136,73 @@ namespace CLParser
 
 	public class Argument
 	{
-		public string Name { get; private set; }
+		//Local counter for Id
+		private static byte _id;
+		public byte Id { get; set; }
+
+		public string Name { get; set; }
 		public string Value { get; private set; }
-		public bool Exists { get; private set; } = false;
 		public int Count { get; private set; }
+
+		public byte MinCount { get; set; } = 1;
+		public byte MaxCount { get; set; } = 1;
 
 		public Argument()
 		{
+			_id++;
+			Id = _id;
+		}
+
+		public Argument NotRequiredValue()
+		{
+			MinCount = 0;
+			return this;
+		}
+
+		public Argument MaxListValue(byte maxCount = 255)
+		{
+			MaxCount = maxCount;
+			return this;
+		}
+
+		#region AddAlias >> Add Alias
+		public Argument AddAlias(string aliasName)
+		{
+			try
+			{
+				CLI.Aliasses.Add(aliasName.ToLower(), this.Name);
+			}
+			catch (Exception)
+			{
+				Console.WriteLine($"Error: Argument {this.Name} does already exists.");
+			}
+
+			return this;
+		}
+		#endregion
+
+		public bool IsRequeredArgument()
+		{
+			return MinCount > 0;
+		}
+
+		public bool IsListableArgument()
+		{
+			return MaxCount > MinCount;
+		}
+
+		public bool HasArgumentValue()
+		{
+			return Value != null;
+		}
+
+		public bool IsListValue()
+		{
+			if (Value == null)
+			{
+				return false;
+			}
+			return Value.Length > 1;
 		}
 	}
 }
