@@ -7,13 +7,32 @@ namespace CLParser
 	public class CLI
 	{
 		public string ArgumentNamePrefixes { get; set; } = "-/";
-		public string ValueNamesSeparators { get; set; } = ",|";
+		public string ArgumentNameValueSeparators { get; set; } = ":";
+		public string ValueListSeparators { get; set; } = ",|";
 
 		public static IDictionary<string, Argument> Arguments = new Dictionary<string, Argument>();
 		internal static IDictionary<string, string> Aliasses = new Dictionary<string, string>();
 
 		public CLI()
 		{
+		}
+
+		public CLI SetArgumentNamePrefixes(string value)
+		{
+			ArgumentNamePrefixes = value;
+			return this;
+		}
+
+		public CLI SetArgumentNameValueSeparators(string value)
+		{
+			ArgumentNameValueSeparators = value;
+			return this;
+		}
+
+		public CLI SetValueListSeparators(string value)
+		{
+			ValueListSeparators = value;
+			return this;
 		}
 
 		#region Add >> Add Argument(<Name>)
@@ -36,7 +55,7 @@ namespace CLParser
 		}
 		#endregion
 
-		#region AddAlias >> Add Alias for ParserItem:Name
+		#region AddAlias >> Add Alias for this object
 		public bool AddAlias(string argumentName, string aliasName)
 		{
 			bool Result = true;
@@ -85,6 +104,11 @@ namespace CLParser
 		{
 			bool Result = true;
 
+			foreach (var item in args)
+			{
+
+			}
+
 			return Result;
 		}
 		#endregion
@@ -103,8 +127,7 @@ namespace CLParser
 
 			foreach (var item in Arguments)
 			{
-				Console.WriteLine($"{item.Key}: #{item.Value.Id}, Required: {item.Value.IsRequeredArgument()} " +
-					$"List: {item.Value.IsListableArgument()}");
+				//ToDo: Validation
 			}
 
 			return Result;
