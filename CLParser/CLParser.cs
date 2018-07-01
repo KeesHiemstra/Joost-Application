@@ -8,7 +8,7 @@ namespace CLParser
 	{
 		public string ArgumentNamePrefixes { get; set; } = "-/";
 		public string ArgumentNameValueSeparators { get; set; } = ":";
-		public string ValueListSeparators { get; set; } = ",|";
+		public char[] ValueListSeparator { get; set; } = { '|' };
 
 		public static IDictionary<string, Argument> Arguments = new Dictionary<string, Argument>();
 		internal static IDictionary<string, string> Aliasses = new Dictionary<string, string>();
@@ -29,9 +29,9 @@ namespace CLParser
 			return this;
 		}
 
-		public CLI SetValueListSeparators(string value)
+		public CLI SetValueListSeparators(char[] value)
 		{
-			ValueListSeparators = value;
+			ValueListSeparator = value;
 			return this;
 		}
 
@@ -76,14 +76,21 @@ namespace CLParser
 		#region Parse >> Parse CLI arguments
 		public bool Parse(string[] args)
 		{
+#if DEBUG
+			Log($"Start Parse");
+#endif
 			bool Result = true;
 
 			if (Result = ParseArgs(args))
 			{
-				Console.WriteLine("Info: Parsed arguments");
+#if DEBUG
+				Log("Parse arguments completed");
+#endif
 				if (Result = ValidateArguments())
 				{
-					Console.WriteLine("Info: Validated arguments");
+#if DEBUG
+					Log("Validate arguments completed");
+#endif
 				}
 				else
 				{
@@ -95,6 +102,9 @@ namespace CLParser
 				Console.WriteLine("Error: Failed parse arguments");
 			}
 
+#if DEBUG
+			Log($"Parse result: {Result}");
+#endif
 			return Result;
 		}
 		#endregion
@@ -102,20 +112,132 @@ namespace CLParser
 		#region Parse arguments
 		private bool ParseArgs(string[] args)
 		{
+#if DEBUG
+			Log("Start ParseArgs");
+#endif
 			bool Result = true;
+			byte argumentCount = 0;
+			string argumentName = string.Empty;
+			string argumentValue = string.Empty;
 
-			foreach (var item in args)
+			for (int currentArgument = 0; currentArgument < args.Length; currentArgument++)
 			{
+				argumentValue = string.Empty;
+				if (IsArgumentName(args[currentArgument]))
+				{
+					//Remove prefix and translate alias to argument name
+					argumentName = CompleteArgumentName(args[currentArgument]);
 
-			}
+					if (!string.IsNullOrEmpty(argumentName))
+					{
+						int nextArgument = currentArgument + 1;
+						while (nextArgument < args.Length && !IsArgumentName(args[nextArgument]))
+						{
+							nextArgument++;
+						}
 
+						if (nextArgument < args.Length)
+						{
+							nextArgument--;
+							if (nextArgument > currentArgument)
+							{
+								argumentValue = args[nextArgument];
+								currentArgument = nextArgument;
+							}
+							else
+							{
+								//No argument values
+								argumentValue = string.Empty;
+							}
+						}//Get argument value
+					}
+					else
+					{
+						//No argument name provided
+						foreach (var item in Arguments)
+						{
+							if (item.Value.Id == argumentCount)
+							{
+								argumentName = item.Value.Name;
+#if DEBUG
+								Log($"Assumed argument name: {argumentName}");
+#endif
+								break;
+							}
+						}
+						argumentValue = args[currentArgument];
+					}
+
+					argumentCount++;
+
+				}//if IsArgumentName
+
+				ProcessArgument(argumentName, argumentValue);
+			}//Loop
+
+#if DEBUG
+			Log($"ParseArgs result: {Result}");
+#endif
 			return Result;
+		}
+		#endregion
+
+		#region CompleteArgumentName
+		private string CompleteArgumentName(string aliasName)
+		{
+			if (aliasName.Length == 0) { return string.Empty; }
+			//Remove prefix
+			aliasName = aliasName.Substring(1, aliasName.Length - 1);
+
+			//Return the name based on the alias
+			aliasName = GetName(aliasName);
+			return aliasName;
+		}
+		#endregion
+
+		#region IsArgumentName
+		private bool IsArgumentName(string argument)
+		{
+			string argumentName = string.Empty;
+			argumentName = argument.Substring(0, 1);
+			if (ArgumentNamePrefixes.Contains(argumentName))
+			{
+				return true;
+			}
+			return false;
 		}
 		#endregion
 
 		#region Process argument
 		private void ProcessArgument(string argumentName, string argumentValue)
 		{
+			if (argumentName == string.Empty && argumentValue == string.Empty) { return; }
+
+			#region Debug
+#if DEBUG
+			Log($"Argument: {argumentName} => {argumentValue}");
+#endif
+			#endregion
+			if (argumentName != string.Empty)
+			{
+				Log(argumentValue);
+				//ToDo: Find argumentName
+			}
+
+			if (!string.IsNullOrEmpty(argumentName))
+			{
+				Arguments[argumentName].Count++;
+				if (!string.IsNullOrEmpty(argumentValue))
+				{
+					if (Arguments[argumentName].Value == null) { Arguments[argumentName].Value = new List<string>(); }
+
+					string[] values = argumentValue.Split(ValueListSeparator);
+					foreach (var item in values)
+					{
+						Arguments[argumentName].Value.Add(item);
+					}
+				}
+			}
 
 		}
 		#endregion
@@ -124,10 +246,37 @@ namespace CLParser
 		private bool ValidateArguments()
 		{
 			bool Result = true;
+			bool result = true;
 
-			foreach (var item in Arguments)
+			foreach (var argument in Arguments)
 			{
-				//ToDo: Validation
+				result = argument.Value.Count >= argument.Value.MinCount;
+				result = result && argument.Value.Count <= argument.Value.MaxCount;
+
+				if (argument.Value.IsRequeredArgument()) { Result = Result && result; }
+
+				#region Debug
+#if DEBUG
+				string option = "required";
+				if (!argument.Value.IsRequeredArgument()) { option = "optional"; }
+				string msg = $"{argument.Value.Name} {option} ({argument.Value.Count}) = {result}";
+				if (argument.Value.Value != null)
+				{
+					if (argument.Value.Value.Count == 1)
+					{
+						msg += ": " + argument.Value.Value[0];
+					}
+				}
+				Log(msg);
+				if (argument.Value.Value != null && argument.Value.Value.Count > 1)
+				{
+					foreach (var item in argument.Value.Value)
+					{
+						Log($" - {item}");
+					}
+				}
+#endif
+				#endregion
 			}
 
 			return Result;
@@ -155,6 +304,15 @@ namespace CLParser
 			return Result;
 		}
 		#endregion
+
+		#region Debug
+#if DEBUG
+		public static void Log(string logMessage)
+		{
+			Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} {logMessage}");
+		}
+#endif
+		#endregion
 	}
 
 	public class Argument
@@ -164,16 +322,16 @@ namespace CLParser
 		public byte Id { get; set; }
 
 		public string Name { get; set; }
-		public string Value { get; private set; }
-		public int Count { get; private set; }
+		public IList<string> Value { get; set; }
+		public int Count { get; set; }
 
 		public byte MinCount { get; set; } = 1;
 		public byte MaxCount { get; set; } = 1;
 
 		public Argument()
 		{
-			_id++;
 			Id = _id;
+			_id++;
 		}
 
 		public Argument NotRequiredValue()
@@ -225,7 +383,7 @@ namespace CLParser
 			{
 				return false;
 			}
-			return Value.Length > 1;
+			return Value.Count > 1;
 		}
 	}
 }
